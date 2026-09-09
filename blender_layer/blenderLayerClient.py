@@ -64,6 +64,7 @@ class BlenderLayerClient():
         self.shm = None
         self.buf = []
         self.offscreen = None
+        self.loggedShape = False
 
     def connect(self, host, port):
         HOST = host
@@ -131,7 +132,7 @@ class BlenderLayerClient():
                 self.updatePoseLib()
                     
             if self.sharedMem:
-                self.shm = shared_memory.SharedMemory(name=(f'krita_blender_layer:{PORT}'))
+                self.shm = shared_memory.SharedMemory(name=(f'krita_blender_layer_{PORT}'))
             else:
                 self.shm = None
             bpy.app.timers.register(self.onUpdate, persistent = True)
@@ -312,7 +313,7 @@ class BlenderLayerClient():
             self.sendMessage(('poselib', poselib, clear))
         
     def getPosePreview(self, action):
-        return np.array(action.preview.image_pixels, copy=False).ravel(order = 'F').reshape(128, 128)[::-1,:].ravel().tobytes()
+        return np.asarray(action.preview.image_pixels).ravel(order = 'F').reshape(128, 128)[::-1,:].ravel().tobytes()
         
     def sendMessage(self, msg):
         self.sendQueue.put(msg)
@@ -753,11 +754,16 @@ class BlenderLayerClient():
                     h = self.regionHeight // scale
                     w = self.regionWidth // scale
                     if len(self.buf) == h and len(self.buf[0]) == w:
-                        b = np.array(self.buf, copy=False, dtype=self.dtype).ravel(order = 'F')
+                        b = np.asarray(self.buf, dtype=self.dtype)
+                        if b.ndim == 1:
+                            b = b.reshape(h, w, 4)
+                        if self.loggedShape is False:
+                            self.loggedShape = True
+                            print("[Blender Layer] buffer shape:", b.shape)
                         if self.bgrConversion:
-                            b = b.reshape(h, w, 4)[::-1,:,[2, 1, 0, 3]]
+                            b = b[::-1,:,[2, 1, 0, 3]]
                         else:
-                            b = b.reshape(h, w, 4)[::-1,:,[0, 1, 2, 3]]
+                            b = b[::-1,:,[0, 1, 2, 3]]
                         if scale != 1:
                             b = b.repeat(scale, axis=0).repeat(scale, axis=1)
                         b = b.ravel().tobytes()

@@ -1036,7 +1036,7 @@ class BlenderLayer(DockWidget):
         self.activeDocument.refreshProjection()
                 
     def createAssistants(self):
-        (fileName, mime) = QFileDialog.getSaveFileName(self, i18n("Save File"), os.path.join(QStandardPaths.writableLocation(QStandardPaths.PicturesLocation), 'blenderlayer.paintingassistant'), i18n("Krita Assistant (*.paintingassistant)"))
+        (fileName, mime) = QFileDialog.getSaveFileName(self, i18n("Save File"), os.path.join(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.PicturesLocation), 'blenderlayer.paintingassistant'), i18n("Krita Assistant (*.paintingassistant)"))
         if fileName:
             instance.action('KisAssistantTool').trigger()
             d = self.activeDocument if self.activeDocument else instance.activeDocument()

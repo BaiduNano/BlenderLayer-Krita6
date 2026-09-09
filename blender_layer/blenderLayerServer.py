@@ -106,7 +106,22 @@ class BlenderLayerServer(QRunnable):
             s.listen(1)
 
             if self.settings.sharedMem:
-                shm = shared_memory.SharedMemory(name=(f'krita_blender_layer:{PORT}'), create=True, size=bytesPerPixel * orgWidth * orgHeight)
+                shmName = f'krita_blender_layer_{PORT}'
+                try:
+                    shm = shared_memory.SharedMemory(name=shmName, create=True, size=bytesPerPixel * orgWidth * orgHeight)
+                except FileExistsError:
+                    print("[BlenderLayerServer] Removing stale shared memory", shmName)
+                    try:
+                        stale = shared_memory.SharedMemory(name=shmName)
+                        stale.close()
+                        stale.unlink()
+                    except Exception as e:
+                        print(e)
+                    shm = shared_memory.SharedMemory(name=shmName, create=True, size=bytesPerPixel * orgWidth * orgHeight)
+                except Exception as e:
+                    self.signals.error.emit(i18n("Warning: Could not create shared memory ({0}). Using socket transfer").format(str(e)))
+                    self.settings.sharedMem = False
+                    shm = None
             i = 0
             resultStr = ''
             while self.running:

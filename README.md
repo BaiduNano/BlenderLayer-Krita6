@@ -3,8 +3,17 @@ See Krita Artists [post](https://krita-artists.org/t/plugin-blender-layer-live-3
 
 This is intended for 2d artist who want to use 3d models as reference in krita. Some features for 3d artist, i.e. texture painting, might be added in the future (Proof of concept in dev branch)
 
+## Changelog
+
+- **Krita 6.1.0 (Nightly, Qt6) / PyQt6 port**: full port of the plugin to Krita 6.1.0 / PyQt6.
+  - Converted all PyQt5 calls and enums to PyQt6 (scoped enum access, `QByteArray`, `QImage` formats, etc.).
+  - Fixed shared-memory segment name (no longer contains `:`) for Python 3.13 compatibility.
+  - Fixed frame data layout for Blender 5.x (buffer now handled as `(H, W, 4)` array).
+  - Fixed `QStandardPaths.PicturesLocation` for PyQt6.
+  - Requires **Krita Nightly Qt6 (6.1.0)** and **Blender 5.3.0 alpha**.
+
 ## Getting Started
- - Install Blender
+ - Install Blender (Blender 5.3.0 alpha or newer is required for the companion add-on)
  - Make sure the 'Blender Layer' add-on is installed and enabled in Krita
  - Open a document
  - Connect to Blender:
