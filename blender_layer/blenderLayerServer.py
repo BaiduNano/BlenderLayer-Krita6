@@ -1,7 +1,7 @@
-import subprocess, time, socket, sys, math, struct, pickle, errno  
+import subprocess, time, socket, sys, math, struct, pickle, errno
 from multiprocessing import shared_memory, SimpleQueue
-from PyQt5.QtCore import QRunnable, QObject, pyqtSignal, QByteArray
-from PyQt5.QtGui import QImage
+from PyQt6.QtCore import QRunnable, QObject, pyqtSignal, QByteArray
+from PyQt6.QtGui import QImage
 
 def sendObj(conn, obj):
     msg = pickle.dumps(obj, pickle.HIGHEST_PROTOCOL)
@@ -14,7 +14,7 @@ def recvObj(conn):
         return None
     msglen = struct.unpack('>I', raw_msglen)[0]
     msg = recvAll(conn, msglen)
-    return pickle.loads(msg) 
+    return pickle.loads(msg)
 
 def recvAll(conn, n):
     data = bytearray()
@@ -41,7 +41,7 @@ class BlenderLayerServer(QRunnable):
         self.running = False
         self.signals = RunnableSignals()
         self.sendQueue = SimpleQueue()
-        
+
     def sendMessage(self, msg):
         self.sendQueue.put(msg)
 
@@ -54,22 +54,22 @@ class BlenderLayerServer(QRunnable):
         locked = False
         refresh = False
         framesLocked = 0
-            
-        try:     
+
+        try:
             d = instance.activeDocument()
             root = d.rootNode()
 
             l = d.nodeByName(self.settings.layerName)
             if l == None or l == 0:
                 l = d.createNode(self.settings.layerName, 'paintLayer')
-                root.addChildNode(l, None)               
+                root.addChildNode(l, None)
 
             l.setLocked(False)
 
             format = "RGBA8"
             bytesPerPixel = 4
             convertBGR = self.settings.convertBGR
-            if self.settings.overrideSRGB:    
+            if self.settings.overrideSRGB:
                 l.setColorSpace('RGBA', 'U8', 'sRGB-elle-V2-srgbtrc.icc')
             else:
                 floating = False
@@ -83,28 +83,28 @@ class BlenderLayerServer(QRunnable):
                     floating = True
                     bytesPerPixel = 8
                 elif depth == 'F32':
-                    format = 'RGBA32F' 
+                    format = 'RGBA32F'
                     bytesPerPixel = 16
                     floating = True
                 convertBGR = convertBGR and not floating and ('RGB' in d.colorModel())
                 l.setColorSpace(d.colorModel(), d.colorDepth(), d.colorProfile())
-                
+
             modifiedSupported = getattr(d, "setModified", None) != None
 
             width = d.width()
             height = d.height()
             orgWidth = width
             orgHeight = height
-        
+
             HOST = self.settings.host
             PORT = self.settings.port
             MAGIC = b'BLENDER_LAYER_V1'
-  
+
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(5.0)
             s.bind((HOST, PORT))
             s.listen(1)
-            
+
             if self.settings.sharedMem:
                 shm = shared_memory.SharedMemory(name=(f'krita_blender_layer:{PORT}'), create=True, size=bytesPerPixel * orgWidth * orgHeight)
             i = 0
@@ -123,7 +123,7 @@ class BlenderLayerServer(QRunnable):
 
                     while not self.sendQueue.empty():
                         self.sendQueue.get()
-                            
+
                     if not self.settings.region:
                         self.settings.regionX = 0
                         self.settings.regionY = 0
@@ -133,13 +133,13 @@ class BlenderLayerServer(QRunnable):
 
                     sendObj(conn, ('Init', width, height, self.settings.regionX, self.settings.regionY, self.settings.regionWidth, self.settings.regionHeight, self.settings.regionViewport, self.settings.scale, self.settings.framerateScale, format, bytesPerPixel, self.settings.colorManageBlender, convertBGR, self.settings.transparency, self.settings.gizmos, self.settings.lensZoom, self.settings.viewMode, self.settings.updateMode, self.settings.renderCurrentView, self.settings.sharedMem, self.settings.backgroundDraw))
                     self.signals.connected.emit(True, recvObj(conn))
-                    
+
                     while self.running:
                         if l == None or l == 0:
                             l = d.nodeByName(self.settings.layerName)
                         if l == None or l == 0:
                             raise Exception(i18n("Error: Layer not found"))
-                            
+
                         if d.width() != width or d.height() != height:
                             if d.width() > orgWidth or d.height() > orgHeight and shm:
                                 self.signals.error.emit(i18n("Warning: Disabling shared memory since image size changed. Consider Reconnecting"))
@@ -165,12 +165,12 @@ class BlenderLayerServer(QRunnable):
                                             d.unlock()
                                             locked = False
                                             framesLocked = 0
-                                        d.setActiveNode(d.rootNode())                               
+                                        d.setActiveNode(d.rootNode())
                                         d.setActiveNode(l)
                                         d.setCurrentTime(t)
                                         if t > 0:
                                             l.setLocked(False)
-                                            instance.action('add_blank_frame').trigger() 
+                                            instance.action('add_blank_frame').trigger()
                                             while not l.hasKeyframeAtTime(t) and self.running:
                                                 time.sleep(0.01)
                                             l.setLocked(True)
@@ -194,7 +194,7 @@ class BlenderLayerServer(QRunnable):
                                                 l.setPixelData(QByteArray(msg[5]), x, y, w, h)
                                             elif shm:
                                                 l.setPixelData(QByteArray(shm.buf.tobytes()), x, y, w, h)
-                                            
+
                                             if locked:
                                                 refresh = True
                                             else:
@@ -204,9 +204,9 @@ class BlenderLayerServer(QRunnable):
                                         elif msg[0] == 'updateFromFile' or msg[0] == 'updateFrameFromFile':
                                             frame = QImage(msg[3])
                                             if format == 'RGBA8':
-                                                frame = frame.convertToFormat(QImage.Format_RGBA8888)
+                                                frame = frame.convertToFormat(QImage.Format.Format_RGBA8888)
                                             elif format == 'RGBA16':
-                                                frame = frame.convertToFormat(QImage.Format_RGBA64)
+                                                frame = frame.convertToFormat(QImage.Format.Format_RGBA64)
                                             elif format == 'RGBA16F':
                                                 #frame = frame.convertToFormat(QImage.Format_RGBA16FPx4)
                                                 self.signals.error.emit(i18n("Warning: Float format conversion not supported"))
@@ -229,7 +229,7 @@ class BlenderLayerServer(QRunnable):
                                                     if x > 0 or y > 0 or w < d.width() or h < d.height():
                                                         l.setPixelData(QByteArray(bytes(d.width() * d.height() * 4)), 0, 0, d.width(), d.height())
 
-                                                l.setPixelData(QByteArray.fromRawData(bits.asarray(frame.sizeInBytes())), x, y, w, h)
+                                                l.setPixelData(QByteArray(bits.asarray(frame.sizeInBytes())), x, y, w, h)
                                                 if locked:
                                                     refresh = True
                                                 else:
@@ -253,48 +253,48 @@ class BlenderLayerServer(QRunnable):
                                         d.setFullClipRangeEndTime(end)
                                     if start == 0:
                                         start = 1
-                                        
+
                                     if locked:
                                         d.unlock()
                                         locked = False
                                         framesLocked = 0
-                                   
-                                    d.setActiveNode(d.rootNode())                               
+
+                                    d.setActiveNode(d.rootNode())
                                     d.setActiveNode(l)
                                     l.setLocked(False)
 
                                     if not l.animated():
-                                        l.enableAnimation()                               
+                                        l.enableAnimation()
                                         l.setPinnedToTimeline(True)
-                                        
+
                                     #for t in range(start, end + 1):
                                     #    d.setCurrentTime(start)
-                                    #    instance.action('remove_frames_and_pull').trigger() 
+                                    #    instance.action('remove_frames_and_pull').trigger()
                                     #    if self.running and t % 10 == 0:
                                     #        sendObj(conn, 'wait')
-                                         
-                                    d.waitForDone()                                         
+
+                                    d.waitForDone()
                                     for t in range(start, end + 1):
                                         #keyframe = t % steps == 0
                                         #if keyframe and not l.hasKeyframeAtTime(t):
                                         #    d.setCurrentTime(t)
-                                        #    instance.action('add_blank_frame').trigger() 
+                                        #    instance.action('add_blank_frame').trigger()
                                         #    while not l.hasKeyframeAtTime(t) and self.running:
                                         #        time.sleep(0.01)
                                         #elif not keyframe and l.hasKeyframeAtTime(t):
                                         #    d.setCurrentTime(t)
-                                        #    instance.action('remove_frames').trigger() 
+                                        #    instance.action('remove_frames').trigger()
                                         #    while l.hasKeyframeAtTime(t) and self.running:
                                         #        time.sleep(0.01)
                                         if l.hasKeyframeAtTime(t):
                                             d.setCurrentTime(t)
-                                            instance.action('remove_frames').trigger() 
+                                            instance.action('remove_frames').trigger()
                                             i = 0
                                             while l.hasKeyframeAtTime(t) and self.running:
                                                 i = i + 1
                                                 if i % 10 == 0:
                                                     d.setCurrentTime(t)
-                                                    instance.action('remove_frames').trigger() 
+                                                    instance.action('remove_frames').trigger()
                                                 time.sleep(0.01)
                                             if self.running:
                                                 sendObj(conn, 'wait')
@@ -303,8 +303,8 @@ class BlenderLayerServer(QRunnable):
                                     l.setLocked(True)
                                 else:
                                     self.signals.msgReceived.emit(msg)
-                             
-                            
+
+
                         if locked:
                             framesLocked = framesLocked + 1
                             if framesLocked >= self.settings.lockFrames:
@@ -315,7 +315,7 @@ class BlenderLayerServer(QRunnable):
                                     refresh = False
                                 locked = False
                                 framesLocked = 0
-                                
+
                         msgs = []
                         lastType = None
                         while not self.sendQueue.empty():
@@ -332,7 +332,7 @@ class BlenderLayerServer(QRunnable):
                             else:
                                 msgs.append(msg)
                             lastType = type
-                                                            
+
                         if self.running:
                             sendObj(conn, msgs)
 
@@ -340,7 +340,7 @@ class BlenderLayerServer(QRunnable):
                 except socket.timeout:
                     pass
                 l.setLocked(False)
-                self.signals.connected.emit(False, None)       
+                self.signals.connected.emit(False, None)
         except socket.error as e:
             if e.errno == errno.ECONNRESET or e.errno == errno.ECONNABORTED:
                 pass
@@ -350,30 +350,30 @@ class BlenderLayerServer(QRunnable):
                 resultStr = str(e)
         except Exception as e:
             resultStr = str(e)
-                
+
         try:
             if locked:
                 d.unlock()
         except Exception as e:
             print(e)
-            
+
         if refresh:
             d.refreshProjection()
             refresh = False
-            
+
         try:
             if s:
                 s.close()
         except Exception as e:
             print(e)
-            
+
         try:
             if shm:
                 shm.close()
                 shm.unlink()
         except Exception as e:
             print(e)
-        
+
         self.running = False
         if l:
             l.setLocked(False)
